@@ -1,5 +1,5 @@
-// A package to provide a bash-compatible "expand environment
-// variable" function
+// A library to provide a bash-compatible "expand environment
+// variable" function.
 package env
 
 import (
@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+// An interface to allow us to more easily test this, as some of the
+// expansions are state-modifying. This way, we can ensure that we
+// have a known state for testing.
 type environment interface {
 	set(name, value string)
 	get(name string) (string, bool)
@@ -16,10 +19,12 @@ type environment interface {
 
 type native struct{}
 
+// Set variables in the proper environment
 func (e native) set(name, value string) {
 	os.Setenv(name, value)
 }
 
+// Look up variables in the proper environment
 func (e native) get(name string) (string, bool) {
 	return os.LookupEnv(name)
 }
@@ -59,6 +64,7 @@ func findNextStart(s string, p int) int {
 	return -1
 }
 
+// Return true if this looks like a character in a shell variable name.
 func nameConstituent(c byte) bool {
 	switch {
 	case (c >= 'A') && (c <= 'Z'):
@@ -73,6 +79,7 @@ func nameConstituent(c byte) bool {
 	return false
 }
 
+// return true if this looks like a constituent in a positional parameter
 func parameterConstituent(c byte) bool {
 	switch {
 	case (c >= '0') && (c <= '9'):
@@ -81,6 +88,8 @@ func parameterConstituent(c byte) bool {
 	return false
 }
 
+// Return the next position in s that any of the characters in charset is in.
+// A bit naughtily, overload "not found" to be -1
 func skipToNext(s, charset string, i int) int {
 	nexts := make(map[rune]bool)
 	for _, c := range charset {
@@ -157,12 +166,16 @@ func findNextEnd(s string, p int) int {
 	return end
 }
 
+// Gneeral interface for expansions. This simply has a single `expand`
+// method that returns the expansion given a specific environment.
 type expansion interface {
 	expand(environment) string
 }
 
 type positional int
 
+// Positional parameters, note that these do NOT use the envionment,
+// but we pass it in to fulfill the interface contract.
 func (p positional) expand(e environment) string {
 	if int(p) >= len(os.Args) {
 		return ""
@@ -172,12 +185,15 @@ func (p positional) expand(e environment) string {
 
 type constant string
 
+// These are constant strings, we simply need to provide a method for
+// them to be stored as expansions.
 func (c constant) expand(e environment) string {
 	return string(c)
 }
 
 type normal string
 
+// A normal variable expansion, like "$foo" or "${foo}".
 func (n normal) expand(e environment) string {
 	v, _ := e.get(string(n))
 
@@ -188,6 +204,8 @@ type indirect struct {
 	name string
 }
 
+// Indirect expansion, "${!foo}", this first expands foo, then uses
+// that for a second "normal" expansion.
 func (i indirect) expand(e environment) string {
 	next, ok := e.get(i.name)
 	if !ok {
@@ -204,6 +222,7 @@ type defaulted struct {
 	unset bool
 }
 
+// Defaulted expansion, like "${foo:-default}" or "$foo-default}"
 func (d defaulted) expand(e environment) string {
 	v, ok := e.get(d.name)
 
@@ -247,6 +266,7 @@ type assign struct {
 	unset bool
 }
 
+// Assignment expansion, like "${foo:=default}" or "${foo=default}"
 func (a assign) expand(e environment) string {
 	v, ok := e.get(a.name)
 	if !ok {
@@ -281,6 +301,9 @@ type alternate struct {
 	unset bool
 }
 
+// Alternate expansion, this is "${foo:+alternate}" or
+// "${foo+alternate}", the alternate is substituted if foo has a
+// value, and is otherwise blank.
 func (a alternate) expand(e environment) string {
 	v, ok := e.get(a.name)
 
@@ -321,6 +344,10 @@ type offset struct {
 	useLen bool
 }
 
+// Offset expansion, this is "${foo:<offset>}" or
+// "${foo:<offset>:<length>}". There's some complicated "what happens
+// if there are negative numbers" behaviour, please cross-reference
+// the bash manual for specifics.
 func (o offset) expand(e environment) string {
 	v, ok := e.get(o.name)
 	if !ok {
