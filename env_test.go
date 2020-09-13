@@ -41,7 +41,7 @@ func TestFindStart1(t *testing.T) {
 }
 
 func TestFindEnd(t *testing.T) {
-	cases := []struct{
+	cases := []struct {
 		s string
 		e int
 	}{
@@ -68,8 +68,8 @@ func TestExpand(t *testing.T) {
 		{normal("bar"), "gazonk"},
 		{defaulted{name: "foo", word: constant("blubb")}, "bar"},
 		{defaulted{"bar", constant("blubb"), false}, "gazonk"},
-		{defaulted{"slem", constant("blubb"), false}, "blubb"}, 
-		{defaulted{"slem", normal("bar"), false}, "gazonk"}, 
+		{defaulted{"slem", constant("blubb"), false}, "blubb"},
+		{defaulted{"slem", normal("bar"), false}, "gazonk"},
 		{defaulted{"bar", normal("foo"), false}, "gazonk"},
 		{defaulted{"empty", normal("foo"), false}, "bar"},
 		{defaulted{"empty", normal("foo"), true}, ""},
@@ -96,16 +96,15 @@ func TestExpand(t *testing.T) {
 		if seen != expected {
 			t.Errorf("%d, saw «%s», expected «%s»", ix, seen, expected)
 		}
-			
+
 	}
 }
-
 
 func TestParseExpansion1(t *testing.T) {
 	e := internal{"foo": "bar", "bar": "gazonk", "empty": ""}
 
 	// Note, these cases are run in order, and some have side effects
-	cases := []struct{
+	cases := []struct {
 		in   string
 		want string
 	}{

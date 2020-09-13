@@ -39,7 +39,7 @@ func (i internal) get(name string) (string, bool) {
 func findNextStart(s string, p int) int {
 	end := len(s)
 	state := 0
-	
+
 	for p < end {
 		switch state {
 		case 0: // Base state
@@ -66,7 +66,7 @@ func nameConstituent(c byte) bool {
 		return true
 	case (c >= '0') && (c <= '9'):
 		return true
-		
+
 	}
 
 	return false
@@ -140,7 +140,7 @@ func findNextEnd(s string, p int) int {
 			}
 		case 1:
 			if s[p] == '}' {
-				return p+1
+				return p + 1
 			}
 		case 2:
 			c := s[p]
@@ -155,7 +155,6 @@ func findNextEnd(s string, p int) int {
 
 	return end
 }
-
 
 type expansion interface {
 	expand(environment) string
@@ -222,9 +221,9 @@ func (d defaulted) expand(e environment) string {
 
 func makeDefaulted(s string, i int, name string, unsetOnly bool) (expansion, error) {
 	var err error
-	
+
 	rv := defaulted{name: name, unset: unsetOnly}
-	
+
 	if s[i] == '$' {
 		rv.word, err = parseExpansion(s, i)
 		if err != nil {
@@ -272,10 +271,8 @@ func makeAssigned(s string, i int, name string, unsetOnly bool) (expansion, erro
 	}
 
 	return rv, nil
-	
+
 }
-
-
 
 type alternate struct {
 	name  string
@@ -293,16 +290,16 @@ func (a alternate) expand(e environment) string {
 	if v == "" && !a.unset {
 		return ""
 	}
-	
+
 	return a.word.expand(e)
 }
 
 func makeAlternated(s string, i int, name string, unsetOnly bool) (expansion, error) {
 	var err error
-	
+
 	rv := alternate{name: name, unset: unsetOnly}
 	end := findNextEnd(s, i)
-	
+
 	if s[i] == '$' {
 		end = findNextEnd(s, end+1)
 		rv.word, err = parseExpansion(s, i)
@@ -315,7 +312,6 @@ func makeAlternated(s string, i int, name string, unsetOnly bool) (expansion, er
 
 	return rv, nil
 }
-
 
 type offset struct {
 	name   string
@@ -379,7 +375,7 @@ func makeOffseted(s string, i int, name string) (expansion, error) {
 
 	if s[next] == ':' {
 		// We have a length
-		i = next+1
+		i = next + 1
 		// Skip possible spaces
 		for s[i] == ' ' {
 			i++
@@ -406,27 +402,27 @@ func parseExpansion(s string, o int) (expansion, error) {
 
 	switch {
 	case parameterConstituent(s[o+1]):
-		p, err := strconv.Atoi(s[o+1:o+2])
+		p, err := strconv.Atoi(s[o+1 : o+2])
 		if err != nil {
 			return constant("positional parse failed"), err
 		}
 		return positional(p), nil
 	case nameConstituent(s[o+1]):
-		p := o+1
+		p := o + 1
 		l := len(s)
-		for p < l && nameConstituent(s[p])  {
+		for p < l && nameConstituent(s[p]) {
 			p++
 		}
-		return normal(s[o+1:p]), nil
+		return normal(s[o+1 : p]), nil
 	case s[o+1] == '{':
-		for i := o+2; i < len(s); i++ {
+		for i := o + 2; i < len(s); i++ {
 			c := s[i]
 			switch c {
 			case '!':
 				if i == o+2 {
 					// We are looking at an indirect expansion
 					end := findNextEnd(s, i)
-					rv := indirect{name: s[i+1:end]}
+					rv := indirect{name: s[i+1 : end]}
 					return rv, nil
 				}
 			case ':':
@@ -446,11 +442,10 @@ func parseExpansion(s string, o int) (expansion, error) {
 			case '+':
 				return makeAlternated(s, i+1, s[o+2:i], true)
 			case '}':
-				return normal(s[o+2:i]), nil
+				return normal(s[o+2 : i]), nil
 			}
-			
+
 		}
 	}
 	return constant("failed"), fmt.Errorf("Expected to have been caught by a switch statement")
 }
-
