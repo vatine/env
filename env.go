@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type environment interface {
@@ -394,7 +395,7 @@ func makeOffseted(s string, i int, name string) (expansion, error) {
 
 // Parse the correct type of expansion from a string at a given
 // offset, we expect the caller to already know where it ends, for
-// purposes of string slicing. This is basically just the entry-point.
+// purposes of string slicing.
 func parseExpansion(s string, o int) (expansion, error) {
 	if s[o] != '$' {
 		return constant("failed"), fmt.Errorf("Unexpected first character, %c", s[o])
@@ -448,4 +449,37 @@ func parseExpansion(s string, o int) (expansion, error) {
 		}
 	}
 	return constant("failed"), fmt.Errorf("Expected to have been caught by a switch statement")
+}
+
+// Expand a string, with a given environment. Return the expanded
+// string and the first error encountered while expanding the string.
+func expand(s string, e environment) (string, error) {
+	var parts []string
+	offset := 0
+	done := false
+
+	for !done {
+		next := findNextStart(s, offset)
+		if next == -1 {
+			parts = append(parts, s[offset:])
+			done = true
+			continue
+		}
+
+		parts = append(parts, s[offset:next])
+		exp, err := parseExpansion(s, next)
+		if err != nil {
+			return "An error occurred", err
+		}
+		offset = findNextEnd(s, next)
+		parts = append(parts, exp.expand(e))
+	}
+
+	return strings.Join(parts, ""), nil
+}
+
+// Expand a string using the os Environment. Return the expanded
+// string and/or errors encoutered during the parsing.
+func Expand(s string) (string, error) {
+	return expand(s, native{})
 }

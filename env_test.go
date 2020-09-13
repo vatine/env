@@ -138,3 +138,28 @@ func TestParseExpansion1(t *testing.T) {
 		}
 	}
 }
+
+func TestMainExpand(t *testing.T) {
+	e := internal{"foo": "bar", "bar": "gazonk", "empty": ""}
+
+	cases := []struct {
+		in   string
+		want string
+		err  bool
+	}{
+		{"a${foo}b", "abarb", false},
+	}
+
+	for ix, c := range cases {
+		seen, err := expand(c.in, e)
+		if err != nil && !c.err {
+			t.Errorf("Case %d, unexpected error, %s", ix, err)
+		}
+		if err == nil && c.err {
+			t.Errorf("Case %d, unexpected lack of error", ix)
+		}
+		if seen != c.want {
+			t.Errorf("Case %d, (%s) saw «%s», wanted «%s»", ix, c.in, seen, c.want)
+		}
+	}
+}
