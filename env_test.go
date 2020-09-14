@@ -128,6 +128,9 @@ func TestParseExpansion1(t *testing.T) {
 		{"${bar:2:-3}", "z"},
 		{"${bar:-2:-3}", "gazonk"},
 		{"${unset:-2:-3}", "2:-3"},
+		{"${#foo}", "3"},
+		{"${#bar}", "6"},
+		{"${#empty}", "0"},
 	}
 
 	for ix, c := range cases {

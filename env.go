@@ -420,6 +420,15 @@ func makeOffseted(s string, i int, name string) (expansion, error) {
 	return rv, nil
 }
 
+type length struct {
+	name string
+}
+
+func (l length) expand(e environment) string {
+	value, _ := e.get(l.name)
+	return fmt.Sprintf("%d", len(value))
+}
+
 // Parse the correct type of expansion from a string at a given
 // offset, we expect the caller to already know where it ends, for
 // purposes of string slicing.
@@ -451,6 +460,13 @@ func parseExpansion(s string, o int) (expansion, error) {
 					// We are looking at an indirect expansion
 					end := findNextEnd(s, i)
 					rv := indirect{name: s[i+1 : end]}
+					return rv, nil
+				}
+			case '#':
+				if i == o+2 {
+					// We are looking at a length expansion
+					end := findNextEnd(s, i)
+					rv := length{name: s[i+1 : end]}
 					return rv, nil
 				}
 			case ':':
