@@ -4,9 +4,8 @@ import (
 	"testing"
 )
 
-
 func TestPatternMangle(t *testing.T) {
-	cases := []struct{
+	cases := []struct {
 		original, mangled string
 	}{
 		{"gazonk", "gazonk"},
@@ -110,7 +109,7 @@ func TestExpand(t *testing.T) {
 		{alternate{"foo", constant("text"), false}, "text"},
 		{alternate{"foo", constant("text"), true}, "text"},
 		{match{"bar", "gaz", false, false}, "onk"},
-		{match{name:"bar", pattern:"gaz", longest:true, suffix:false}, "onk"},
+		{match{name: "bar", pattern: "gaz", longest: true, suffix: false}, "onk"},
 	}
 
 	for ix, c := range cases {

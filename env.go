@@ -506,7 +506,7 @@ func manglePattern(pattern string) string {
 	state := 0
 
 	acc.Grow(len(pattern))
-	
+
 	for _, r := range pattern {
 		switch state {
 		case 0:
@@ -526,7 +526,7 @@ func manglePattern(pattern string) string {
 }
 
 func makeMatch(s string, i int, name string, suffix bool) expansion {
-	check := map[bool]byte{false:'#', true:'%'}
+	check := map[bool]byte{false: '#', true: '%'}
 	rv := match{name: name, suffix: suffix}
 	if s[i] == check[suffix] {
 		i++
