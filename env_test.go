@@ -162,6 +162,11 @@ func TestParseExpansion1(t *testing.T) {
 		{"${bar##g*[!o]}", ""},
 		{"${bar#g*[!o]}", "zonk"},
 		{"${bar#g?*[!o]}", "onk"},
+		{"${bar%onk}", "gaz"},
+		{"${bar%o*}", "gaz"},
+		{"${bar%%o*}", "gaz"},
+		{"${bar%*}", "gazonk"},
+		{"${bar%%*}", ""},
 	}
 
 	for ix, c := range cases {

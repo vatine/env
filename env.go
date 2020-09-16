@@ -459,7 +459,7 @@ func (m match) expand(e environment) string {
 				}
 			}
 		} else {
-			for o := l - 1; o >= 0; o-- {
+			for o := l; o >= 0; o-- {
 				matched, err := filepath.Match(m.pattern, v[o:])
 				if err != nil {
 					return ""
