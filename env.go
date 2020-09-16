@@ -5,6 +5,7 @@ package env
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -429,6 +430,114 @@ func (l length) expand(e environment) string {
 	return fmt.Sprintf("%d", len(value))
 }
 
+type match struct {
+	name    string
+	pattern string
+	longest bool
+	suffix  bool
+}
+
+// Expand matches, we are using the same type for lonmgest/shortest
+// prefix/suffix match, as it's pretty much the same logic throughout.
+func (m match) expand(e environment) string {
+	v, ok := e.get(m.name)
+	if !ok {
+		return ""
+	}
+
+	l := len(v)
+
+	if m.suffix {
+		if m.longest {
+			for o := 0; o < l; o++ {
+				matched, err := filepath.Match(m.pattern, v[o:])
+				if err != nil {
+					return ""
+				}
+				if matched {
+					return v[:o]
+				}
+			}
+		} else {
+			for o := l - 1; o >= 0; o-- {
+				matched, err := filepath.Match(m.pattern, v[o:])
+				if err != nil {
+					return ""
+				}
+				if matched {
+					return v[:o]
+				}
+			}
+		}
+	} else {
+		if m.longest {
+			for o := l; o >= 0; o-- {
+				matched, err := filepath.Match(m.pattern, v[:o])
+				if err != nil {
+					return ""
+				}
+				if matched {
+					return v[o:]
+				}
+			}
+		} else {
+			for o := 0; o < l; o++ {
+				matched, err := filepath.Match(m.pattern, v[:o])
+				if err != nil {
+					return ""
+				}
+				if matched {
+					return v[o:]
+				}
+			}
+		}
+	}
+
+	return v
+}
+
+// Tweak a POSIX shell pattern and make it into something that works
+// with filepath.Match. For some reason, the system library has chosen
+// [^...] as a character negation class, instead of [!...]. Luckily
+// bash supports both, so by changing ! to ^, we're doing the right
+// thing. There may be edge cases where we get this wrong...
+func manglePattern(pattern string) string {
+	var acc strings.Builder
+	state := 0
+
+	acc.Grow(len(pattern))
+	
+	for _, r := range pattern {
+		switch state {
+		case 0:
+			if r == rune('[') {
+				state = 1
+			}
+		case 1:
+			if r == rune('!') {
+				r = rune('^')
+			}
+			state = 0
+		}
+		acc.WriteRune(r)
+	}
+
+	return acc.String()
+}
+
+func makeMatch(s string, i int, name string, suffix bool) expansion {
+	check := map[bool]byte{false:'#', true:'%'}
+	rv := match{name: name, suffix: suffix}
+	if s[i] == check[suffix] {
+		i++
+		rv.longest = true
+	}
+	end := skipToNext(s, "}", i)
+	rv.pattern = manglePattern(s[i:end])
+
+	return rv
+}
+
 // Parse the correct type of expansion from a string at a given
 // offset, we expect the caller to already know where it ends, for
 // purposes of string slicing.
@@ -469,6 +578,11 @@ func parseExpansion(s string, o int) (expansion, error) {
 					rv := length{name: s[i+1 : end]}
 					return rv, nil
 				}
+				// Prefix match
+				return makeMatch(s, i+1, s[o+2:i], false), nil
+			case '%':
+				// Suffix match
+				return makeMatch(s, i+1, s[o+2:i], true), nil
 			case ':':
 				switch {
 				case s[i+1] == '-':
