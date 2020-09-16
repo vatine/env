@@ -4,6 +4,26 @@ import (
 	"testing"
 )
 
+func TestPatternMangle(t *testing.T) {
+	cases := []struct {
+		original, mangled string
+	}{
+		{"gazonk", "gazonk"},
+		{"gazo[n!k]", "gazo[n!k]"},
+		{"gazon[!k]", "gazon[^k]"},
+	}
+
+	for ix, c := range cases {
+		got := manglePattern(c.original)
+		// got := "zog"
+		want := c.mangled
+
+		if got != want {
+			t.Errorf("Case %d, saw %s, want %s", ix, got, want)
+		}
+	}
+}
+
 func TestFindStart0(t *testing.T) {
 	cases := []struct {
 		s string
@@ -88,6 +108,8 @@ func TestExpand(t *testing.T) {
 		{alternate{"empty", constant("text"), false}, ""},
 		{alternate{"foo", constant("text"), false}, "text"},
 		{alternate{"foo", constant("text"), true}, "text"},
+		{match{"bar", "gaz", false, false}, "onk"},
+		{match{name: "bar", pattern: "gaz", longest: true, suffix: false}, "onk"},
 	}
 
 	for ix, c := range cases {
@@ -131,6 +153,19 @@ func TestParseExpansion1(t *testing.T) {
 		{"${#foo}", "3"},
 		{"${#bar}", "6"},
 		{"${#empty}", "0"},
+		{"${bar#gaz}", "onk"},
+		{"${bar##gaz}", "onk"},
+		{"${bar#gaz*}", "onk"},
+		{"${bar##gaz*}", ""},
+		{"${bar##g*[!k]}", "k"},
+		{"${bar##g*[!o]}", ""},
+		{"${bar#g*[!o]}", "zonk"},
+		{"${bar#g?*[!o]}", "onk"},
+		{"${bar%onk}", "gaz"},
+		{"${bar%o*}", "gaz"},
+		{"${bar%%o*}", "gaz"},
+		{"${bar%*}", "gazonk"},
+		{"${bar%%*}", ""},
 	}
 
 	for ix, c := range cases {
