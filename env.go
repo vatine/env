@@ -13,30 +13,30 @@ import (
 // An interface to allow us to more easily test this, as some of the
 // expansions are state-modifying. This way, we can ensure that we
 // have a known state for testing.
-type environment interface {
-	set(name, value string)
-	get(name string) (string, bool)
+type Environment interface {
+	Set(name, value string)
+	Get(name string) (string, bool)
 }
 
 type native struct{}
 
 // Set variables in the proper environment
-func (e native) set(name, value string) {
+func (e native) Set(name, value string) {
 	os.Setenv(name, value)
 }
 
 // Look up variables in the proper environment
-func (e native) get(name string) (string, bool) {
+func (e native) Get(name string) (string, bool) {
 	return os.LookupEnv(name)
 }
 
 type internal map[string]string
 
-func (i internal) set(name, value string) {
+func (i internal) Set(name, value string) {
 	i[name] = value
 }
 
-func (i internal) get(name string) (string, bool) {
+func (i internal) Get(name string) (string, bool) {
 	v, ok := i[name]
 	return v, ok
 }
@@ -170,14 +170,14 @@ func findNextEnd(s string, p int) int {
 // Gneeral interface for expansions. This simply has a single `expand`
 // method that returns the expansion given a specific environment.
 type expansion interface {
-	expand(environment) string
+	expand(Environment) string
 }
 
 type positional int
 
 // Positional parameters, note that these do NOT use the envionment,
 // but we pass it in to fulfill the interface contract.
-func (p positional) expand(e environment) string {
+func (p positional) expand(e Environment) string {
 	if int(p) >= len(os.Args) {
 		return ""
 	}
@@ -188,15 +188,15 @@ type constant string
 
 // These are constant strings, we simply need to provide a method for
 // them to be stored as expansions.
-func (c constant) expand(e environment) string {
+func (c constant) expand(e Environment) string {
 	return string(c)
 }
 
 type normal string
 
 // A normal variable expansion, like "$foo" or "${foo}".
-func (n normal) expand(e environment) string {
-	v, _ := e.get(string(n))
+func (n normal) expand(e Environment) string {
+	v, _ := e.Get(string(n))
 
 	return v
 }
@@ -207,13 +207,13 @@ type indirect struct {
 
 // Indirect expansion, "${!foo}", this first expands foo, then uses
 // that for a second "normal" expansion.
-func (i indirect) expand(e environment) string {
-	next, ok := e.get(i.name)
+func (i indirect) expand(e Environment) string {
+	next, ok := e.Get(i.name)
 	if !ok {
 		return ""
 	}
 
-	v, _ := e.get(next)
+	v, _ := e.Get(next)
 	return v
 }
 
@@ -224,8 +224,8 @@ type defaulted struct {
 }
 
 // Defaulted expansion, like "${foo:-default}" or "$foo-default}"
-func (d defaulted) expand(e environment) string {
-	v, ok := e.get(d.name)
+func (d defaulted) expand(e Environment) string {
+	v, ok := e.Get(d.name)
 
 	if !ok {
 		return d.word.expand(e)
@@ -268,11 +268,11 @@ type assign struct {
 }
 
 // Assignment expansion, like "${foo:=default}" or "${foo=default}"
-func (a assign) expand(e environment) string {
-	v, ok := e.get(a.name)
+func (a assign) expand(e Environment) string {
+	v, ok := e.Get(a.name)
 	if !ok {
 		v = a.word.expand(e)
-		e.set(a.name, v)
+		e.Set(a.name, v)
 	}
 
 	return v
@@ -305,8 +305,8 @@ type alternate struct {
 // Alternate expansion, this is "${foo:+alternate}" or
 // "${foo+alternate}", the alternate is substituted if foo has a
 // value, and is otherwise blank.
-func (a alternate) expand(e environment) string {
-	v, ok := e.get(a.name)
+func (a alternate) expand(e Environment) string {
+	v, ok := e.Get(a.name)
 
 	if !ok {
 		return ""
@@ -349,8 +349,8 @@ type offset struct {
 // "${foo:<offset>:<length>}". There's some complicated "what happens
 // if there are negative numbers" behaviour, please cross-reference
 // the bash manual for specifics.
-func (o offset) expand(e environment) string {
-	v, ok := e.get(o.name)
+func (o offset) expand(e Environment) string {
+	v, ok := e.Get(o.name)
 	if !ok {
 		return ""
 	}
@@ -425,8 +425,8 @@ type length struct {
 	name string
 }
 
-func (l length) expand(e environment) string {
-	value, _ := e.get(l.name)
+func (l length) expand(e Environment) string {
+	value, _ := e.Get(l.name)
 	return fmt.Sprintf("%d", len(value))
 }
 
@@ -439,8 +439,8 @@ type match struct {
 
 // Expand matches, we are using the same type for lonmgest/shortest
 // prefix/suffix match, as it's pretty much the same logic throughout.
-func (m match) expand(e environment) string {
-	v, ok := e.get(m.name)
+func (m match) expand(e Environment) string {
+	v, ok := e.Get(m.name)
 	if !ok {
 		return ""
 	}
@@ -610,7 +610,7 @@ func parseExpansion(s string, o int) (expansion, error) {
 
 // Expand a string, with a given environment. Return the expanded
 // string and the first error encountered while expanding the string.
-func expand(s string, e environment) (string, error) {
+func expand(s string, e Environment) (string, error) {
 	var parts []string
 	offset := 0
 	done := false
@@ -636,7 +636,13 @@ func expand(s string, e environment) (string, error) {
 }
 
 // Expand a string using the os Environment. Return the expanded
-// string and/or errors encoutered during the parsing.
+// string and/or errors encountered during the parsing.
 func Expand(s string) (string, error) {
 	return expand(s, native{})
+}
+
+// Expand a string using a passed-in environment. Return the expanded
+// string and/or erors encountered during the parsing.
+func ExpandWithEnvironment(s string, e Environment) (string, error) {
+	return expand(s, e)
 }
